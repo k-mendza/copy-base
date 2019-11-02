@@ -1,0 +1,29 @@
+version: '2.1'
+
+services:
+
+  sourceDB:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: sourceDB
+      POSRGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    networks:
+      - web
+
+  targetDB:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: targetDB
+      POSRGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    networks:
+      - web
+networks:
+  web:

@@ -25,5 +25,6 @@ services:
       - "5433:5432"
     networks:
       - web
+
 networks:
   web:

@@ -14,11 +14,11 @@ import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
-import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import javax.sql.DataSource;
 
@@ -77,11 +77,17 @@ public class BatchConfiguration {
 
     @Bean
     public Step step1(JdbcBatchItemWriter<Client> writer) {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(4);
+        taskExecutor.setMaxPoolSize(4);
+        taskExecutor.afterPropertiesSet();
+
         return stepBuilderFactory.get("step1")
                 .<Client, Client> chunk(1000)
                 .reader(reader())
                 .processor(processor())
                 .writer(writer)
+                .taskExecutor(taskExecutor)
                 .build();
     }
 }

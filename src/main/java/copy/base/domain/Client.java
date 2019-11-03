@@ -1,10 +1,12 @@
 package copy.base.domain;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data
+@Setter
+@Getter
+@ToString
 @NoArgsConstructor
+@AllArgsConstructor
 public class Client {
     private Long id;
     private String firstName;

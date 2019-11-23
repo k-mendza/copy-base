@@ -1,6 +1,5 @@
 package copy.base.util;
 
-import copy.base.domain.ClientRowMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.BatchStatus;
@@ -25,11 +24,7 @@ public class JobCompletionNotificationListener extends JobExecutionListenerSuppo
     @Override
     public void afterJob(JobExecution jobExecution) {
         if(jobExecution.getStatus() == BatchStatus.COMPLETED) {
-            log.info("!!! JOB FINISHED! Time to verify the results");
-
-            jdbcTemplate.query("SELECT * FROM CLIENT",
-                    (rs, row) -> new ClientRowMapper())
-                    .forEach(client -> log.info("Found <" + client + "> in the database."));
+            log.info("JOB FINISHED! Please verify the results.");
         }
     }
 }

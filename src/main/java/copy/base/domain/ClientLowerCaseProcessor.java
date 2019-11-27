@@ -6,7 +6,7 @@ import org.springframework.batch.item.ItemProcessor;
 
 public class ClientLowerCaseProcessor implements ItemProcessor<Client, Client> {
 
-    private static final Logger log = LoggerFactory.getLogger(ClientUpperCaseProcessor.class);
+    private static final Logger log = LoggerFactory.getLogger(ClientLowerCaseProcessor.class);
 
     @Override
     public Client process(Client client) {

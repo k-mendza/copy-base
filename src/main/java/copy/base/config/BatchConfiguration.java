@@ -1,9 +1,6 @@
 package copy.base.config;
 
-import copy.base.domain.Client;
-import copy.base.domain.ClientRowMapper;
-import copy.base.domain.ClientUpperCaseProcessor;
-import copy.base.domain.ColumnRangePartitioner;
+import copy.base.domain.*;
 import copy.base.util.JobCompletionNotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,8 +47,8 @@ public class BatchConfiguration {
         ColumnRangePartitioner columnRangePartitioner = new ColumnRangePartitioner();
 
         columnRangePartitioner.setColumn("id");
-        columnRangePartitioner.setDataSource(dataSource);
         columnRangePartitioner.setTable("client");
+        columnRangePartitioner.setDataSource(dataSource);
 
         return columnRangePartitioner;
     }
@@ -75,13 +72,9 @@ public class BatchConfiguration {
         queryProvider.setWhereClause("where id >= " + minValue + " and id <= " + maxValue);
 
         Map<String, Order> sortKeys = new HashMap<>(1);
-
         sortKeys.put("id", Order.ASCENDING);
-
         queryProvider.setSortKeys(sortKeys);
-
         reader.setQueryProvider(queryProvider);
-
         return reader;
     }
 
@@ -100,13 +93,17 @@ public class BatchConfiguration {
                     client.setEmail(fieldSet.readString("email"));
                     client.setPhone(fieldSet.readString("phone"));
                     return client;
-                })
-                .build();
+                }).build();
     }
 
     @Bean
-    public ClientUpperCaseProcessor processor() {
+    public ClientUpperCaseProcessor upperCaseProcessor() {
         return new ClientUpperCaseProcessor();
+    }
+
+    @Bean
+    public ClientLowerCaseProcessor lowerCaseProcessor() {
+        return new ClientLowerCaseProcessor();
     }
 
     @Bean
@@ -136,11 +133,21 @@ public class BatchConfiguration {
         taskExecutor.afterPropertiesSet();
 
         return stepBuilderFactory.get("step1")
-                .<Client, Client> chunk(CHUNK_SIZE)
+                .<Client, Client>chunk(CHUNK_SIZE)
                 .reader(fileReader())
-                .processor(processor())
+                .processor(upperCaseProcessor())
                 .writer(writer)
                 .taskExecutor(taskExecutor)
+                .build();
+    }
+
+    @Bean
+    public Step step2(JdbcBatchItemWriter<Client> writer, DataSource dataSource, Long minValue, Long maxValue) {
+        return stepBuilderFactory.get("step2")
+                .<Client, Client>chunk(CHUNK_SIZE)
+                .reader(pagingItemReader(dataSource, minValue, maxValue))
+                .processor(lowerCaseProcessor())
+                .writer(writer)
                 .build();
     }
 }

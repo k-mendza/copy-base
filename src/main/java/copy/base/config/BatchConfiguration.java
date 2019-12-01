@@ -8,7 +8,6 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
@@ -26,7 +25,7 @@ import javax.sql.DataSource;
 
 @Configuration
 public class BatchConfiguration {
-    public static final int CHUNK_SIZE = 10000;
+    public static final int CHUNK_SIZE = 2048;
     public static final int CORE_POOL_SIZE = 4;
     public static final int MAX_CORE_POOL_SIZE = 16;
     private static final Logger log = LoggerFactory.getLogger(BatchConfiguration.class);
@@ -55,7 +54,6 @@ public class BatchConfiguration {
     }
 
     @Bean
-    @StepScope
     public JdbcCursorItemReader<Client> cursorItemReader() {
         return new JdbcCursorItemReaderBuilder<Client>()
                 .dataSource(this.dataSource)

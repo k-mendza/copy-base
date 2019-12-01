@@ -12,35 +12,36 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
-import org.springframework.batch.item.database.JdbcPagingItemReader;
-import org.springframework.batch.item.database.Order;
+import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
-import org.springframework.batch.item.database.support.PostgresPagingQueryProvider;
+import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import javax.sql.DataSource;
-import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 public class BatchConfiguration {
-    public static final int CHUNK_SIZE=10000;
-    public static final int CORE_POOL_SIZE=4;
-    public static final int MAX_CORE_POOL_SIZE=16;
+    public static final int CHUNK_SIZE = 10000;
+    public static final int CORE_POOL_SIZE = 4;
+    public static final int MAX_CORE_POOL_SIZE = 16;
     private static final Logger log = LoggerFactory.getLogger(BatchConfiguration.class);
 
-    @Autowired
-    public JobBuilderFactory jobBuilderFactory;
+    public final JobBuilderFactory jobBuilderFactory;
 
-    @Autowired
-    public StepBuilderFactory stepBuilderFactory;
+    public final StepBuilderFactory stepBuilderFactory;
+
+    public final DataSource dataSource;
+
+    public BatchConfiguration(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory, DataSource dataSource) {
+        this.jobBuilderFactory = jobBuilderFactory;
+        this.stepBuilderFactory = stepBuilderFactory;
+        this.dataSource = dataSource;
+    }
 
     @Bean
     public ColumnRangePartitioner partitioner(DataSource dataSource) {
@@ -55,27 +56,13 @@ public class BatchConfiguration {
 
     @Bean
     @StepScope
-    public JdbcPagingItemReader<Client> pagingItemReader(
-            DataSource dataSource,
-            @Value("#{stepExecutionContext['minValue']}")Long minValue,
-            @Value("#{stepExecutionContext['maxValue']}")Long maxValue) {
-        log.info("reading " + minValue + " to " + maxValue);
-        JdbcPagingItemReader<Client> reader = new JdbcPagingItemReader<>();
-
-        reader.setDataSource(dataSource);
-        reader.setFetchSize(1000);
-        reader.setRowMapper(new ClientRowMapper());
-
-        PostgresPagingQueryProvider queryProvider = new PostgresPagingQueryProvider();
-        queryProvider.setSelectClause("id, firstName, lastName, email, phone");
-        queryProvider.setFromClause("from client");
-        queryProvider.setWhereClause("where id >= " + minValue + " and id <= " + maxValue);
-
-        Map<String, Order> sortKeys = new HashMap<>(1);
-        sortKeys.put("id", Order.ASCENDING);
-        queryProvider.setSortKeys(sortKeys);
-        reader.setQueryProvider(queryProvider);
-        return reader;
+    public JdbcCursorItemReader<Client> cursorItemReader() {
+        return new JdbcCursorItemReaderBuilder<Client>()
+                .dataSource(this.dataSource)
+                .name("clientReader")
+                .sql("SELECT * FROM CLIENT")
+                .rowMapper(new ClientRowMapper())
+                .build();
     }
 
     @Bean
@@ -142,10 +129,10 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step2(JdbcBatchItemWriter<Client> writer, DataSource dataSource, Long minValue, Long maxValue) {
+    public Step step2(JdbcBatchItemWriter<Client> writer) {
         return stepBuilderFactory.get("step2")
                 .<Client, Client>chunk(CHUNK_SIZE)
-                .reader(pagingItemReader(dataSource, minValue, maxValue))
+                .reader(cursorItemReader())
                 .processor(lowerCaseProcessor())
                 .writer(writer)
                 .build();

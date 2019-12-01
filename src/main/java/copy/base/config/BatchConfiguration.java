@@ -16,6 +16,7 @@ import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilde
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -31,19 +32,19 @@ public class BatchConfiguration {
     private static final Logger log = LoggerFactory.getLogger(BatchConfiguration.class);
 
     public final JobBuilderFactory jobBuilderFactory;
-
     public final StepBuilderFactory stepBuilderFactory;
-
     public final DataSource dataSource;
+    public final DataSource dataTarget;
 
-    public BatchConfiguration(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory, DataSource dataSource) {
+    public BatchConfiguration(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory, @Qualifier("dataSource") DataSource dataSource, @Qualifier("dataTarget") DataSource dataTarget) {
         this.jobBuilderFactory = jobBuilderFactory;
         this.stepBuilderFactory = stepBuilderFactory;
         this.dataSource = dataSource;
+        this.dataTarget = dataTarget;
     }
 
     @Bean
-    public ColumnRangePartitioner partitioner(DataSource dataSource) {
+    public ColumnRangePartitioner partitioner() {
         ColumnRangePartitioner columnRangePartitioner = new ColumnRangePartitioner();
 
         columnRangePartitioner.setColumn("id");
@@ -92,7 +93,7 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public JdbcBatchItemWriter<Client> writer(DataSource dataSource) {
+    public JdbcBatchItemWriter<Client> dataSourceWriter() {
         return new JdbcBatchItemWriterBuilder<Client>()
                 .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
                 .sql("INSERT INTO client (id, firstName, lastName, email, phone) VALUES (:id, :firstName, :lastName, :email, :phone)")
@@ -101,17 +102,27 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Job importClientJob(JobCompletionNotificationListener listener, Step step1) {
+    public JdbcBatchItemWriter<Client> dataTargetWriter() {
+        return new JdbcBatchItemWriterBuilder<Client>()
+                .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
+                .sql("INSERT INTO client (id, firstName, lastName, email, phone) VALUES (:id, :firstName, :lastName, :email, :phone)")
+                .dataSource(dataTarget)
+                .build();
+    }
+
+    @Bean
+    public Job importClientJob(JobCompletionNotificationListener listener, Step step1, Step step2) {
         return jobBuilderFactory.get("importClientJob")
                 .incrementer(new RunIdIncrementer())
                 .listener(listener)
                 .flow(step1)
+                .next(step2)
                 .end()
                 .build();
     }
 
     @Bean
-    public Step step1(JdbcBatchItemWriter<Client> writer) {
+    public Step step1(@Qualifier("dataSourceWriter") JdbcBatchItemWriter<Client> writer) {
         ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
         taskExecutor.setCorePoolSize(CORE_POOL_SIZE);
         taskExecutor.setMaxPoolSize(MAX_CORE_POOL_SIZE);
@@ -127,7 +138,7 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step2(JdbcBatchItemWriter<Client> writer) {
+    public Step step2(@Qualifier("dataTargetWriter") JdbcBatchItemWriter<Client> writer) {
         return stepBuilderFactory.get("step2")
                 .<Client, Client>chunk(CHUNK_SIZE)
                 .reader(cursorItemReader())

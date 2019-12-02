@@ -26,7 +26,7 @@ public class DataTargetConfiguration {
     }
 
     @Bean(name = "dataTarget")
-    @ConfigurationProperties(prefix = "spring.datatarget")
+    @ConfigurationProperties(prefix = "postgres.datatarget")
     public DataSource dataTarget() {
         return DataSourceBuilder.create().build();
     }

@@ -1,4 +1,4 @@
-package copy.base.domain;
+package copy.base.domain.datasource;
 
 import org.springframework.batch.core.partition.support.Partitioner;
 import org.springframework.batch.item.ExecutionContext;

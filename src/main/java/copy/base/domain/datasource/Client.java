@@ -1,4 +1,4 @@
-package copy.base.domain;
+package copy.base.domain.datasource;
 
 import lombok.*;
 

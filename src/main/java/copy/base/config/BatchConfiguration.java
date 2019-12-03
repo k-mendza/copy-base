@@ -1,6 +1,6 @@
 package copy.base.config;
 
-import copy.base.domain.*;
+import copy.base.domain.datasource.*;
 import copy.base.util.JobCompletionNotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,11 +36,11 @@ public class BatchConfiguration {
     public final DataSource dataSource;
     public final DataSource dataTarget;
 
-    public BatchConfiguration(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory, @Qualifier("dataSource") DataSource dataSource, @Qualifier("dataTarget") DataSource dataTarget) {
+    public BatchConfiguration(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory, @Qualifier("datasource") DataSource dataSource, @Qualifier("datatarget") DataSource datatarget) {
         this.jobBuilderFactory = jobBuilderFactory;
         this.stepBuilderFactory = stepBuilderFactory;
         this.dataSource = dataSource;
-        this.dataTarget = dataTarget;
+        this.dataTarget = datatarget;
     }
 
     @Bean

@@ -1,58 +1,54 @@
 package copy.base.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.PropertySource;
-import org.springframework.core.env.Environment;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
-import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
-import java.util.HashMap;
 
 @Configuration
-@PropertySource({"classpath:application.properties"})
+@EnableTransactionManagement
+@EnableJpaRepositories(
+        transactionManagerRef = "datatargetTransactionManager",
+        entityManagerFactoryRef = "datatargetEntityManagerFactory",
+        basePackages = {"copy.base.domain.datatarget"}
+)
 public class DataTargetConfiguration {
 
-    private final Environment env;
-
-    public DataTargetConfiguration(Environment env) {
-        this.env = env;
+    @Bean(name = "datatargetProperties")
+    @ConfigurationProperties("postgres.datatarget")
+    public DataSourceProperties datatargetProperties() {
+        return new DataSourceProperties();
     }
 
-    @Bean(name = "dataTarget")
-    @ConfigurationProperties(prefix = "postgres.datatarget")
-    public DataSource dataTarget() {
-        return DataSourceBuilder.create().build();
-    }
-
-    @Bean
-    @Primary
-    public LocalContainerEntityManagerFactoryBean tsEntityManager() {
-        LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
-        em.setDataSource(dataTarget());
-        em.setPackagesToScan("copy.base.domain.Client");
-
-        HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
-        em.setJpaVendorAdapter(vendorAdapter);
-        HashMap<String, Object> properties = new HashMap<>();
-        properties.put("hibernate.hbm2ddl.auto", env.getProperty("hibernate.hbm2ddl.auto"));
-        properties.put("hibernate.dialect", env.getProperty("hibernate.dialect"));
-        em.setJpaPropertyMap(properties);
-
-        return em;
+    @Bean(name = "datatarget")
+    public DataSource datatarget(@Qualifier("datatargetProperties") DataSourceProperties properties) {
+        return properties.initializeDataSourceBuilder().build();
     }
 
     @Primary
-    @Bean
-    public PlatformTransactionManager tsTransactionManager() {
-        JpaTransactionManager transactionManager = new JpaTransactionManager();
-        transactionManager.setEntityManagerFactory(tsEntityManager().getObject());
-        return transactionManager;
+    @Bean(name = "datatargetEntityManagerFactory")
+    public LocalContainerEntityManagerFactoryBean datatargetEntityManagerFactoryBean(EntityManagerFactoryBuilder builder, @Qualifier("datatarget") DataSource datatarget) {
+        return builder.dataSource(datatarget)
+                .packages("copy.base.domain.datatarget")
+                .persistenceUnit("datatarget")
+                .build();
+    }
+
+    @Primary
+    @Bean(name = "datatargetTransactionManager")
+    @ConfigurationProperties("postgres.jpa")
+    public PlatformTransactionManager transactionManager(@Qualifier("datatargetEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
+        return new JpaTransactionManager(entityManagerFactory);
     }
 }
